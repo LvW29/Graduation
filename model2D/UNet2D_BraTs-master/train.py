@@ -41,8 +41,8 @@ loss_names = list(losses.__dict__.keys())
 loss_names.append('BCEWithLogitsLoss')
 
 # 构建图像和掩码目录的路径
-# image_dir = os.path.join('..', '..', '..', 'autodl-tmp', '2D', 'trainImage')
-# mask_dir = os.path.join('..', '..', '..', 'autodl-tmp', '2D', 'trainMask')
+# image_dir = os.path.join('..', '..', '..', '..', 'autodl-tmp', '2D', 'trainImage')
+# mask_dir = os.path.join('..', '..', '..', '..', 'autodl-tmp', '2D', 'trainMask')
 image_dir = os.path.join('..', '..', 'data', 'processed', '2D', 'trainImage')
 mask_dir = os.path.join('..', '..', 'data', 'processed', '2D', 'trainMask')
 
