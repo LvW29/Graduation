@@ -36,11 +36,11 @@ class Upsample_block(nn.Module):
         return x
 
 
-class Unet(nn.Module):
+class Unet2D(nn.Module):
     def __init__(self, args):
         in_chan = 4
         out_chan = 3
-        super(Unet, self).__init__()
+        super(Unet2D, self).__init__()
         self.down1 = Downsample_block(in_chan, 64)
         self.down2 = Downsample_block(64, 128)
         self.down3 = Downsample_block(128, 256)

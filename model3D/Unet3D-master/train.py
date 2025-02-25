@@ -14,7 +14,7 @@ import numpy as np
 from tqdm import tqdm
 
 from sklearn.model_selection import train_test_split
-from sklearn.externals import joblib
+import joblib
 from skimage.io import imread
 
 import torch
@@ -40,21 +40,34 @@ arch_names = list(unet3d.__dict__.keys())
 loss_names = list(losses.__dict__.keys())
 loss_names.append('BCEWithLogitsLoss')
 
-IMG_PATH = glob(r'..\..\data\processed\3D\trainImage\*')
-MASK_PATH = glob(r'..\..\data\processed\3D\trainMask\*')
+# 构建图像和掩码目录的路径
+# image_dir = os.path.join('..', '..', '..', '..', 'autodl-tmp', '3D', 'trainImage')
+# mask_dir = os.path.join('..', '..', '..', '..', 'autodl-tmp', '3D', 'trainMask')
+image_dir = os.path.join('..', '..', '..', 'data', 'processed', '3D', 'trainImage')
+mask_dir = os.path.join('..', '..', '..', 'data', 'processed', '3D', 'trainMask')
+
+# 使用 glob 获取文件路径
+# IMG_PATH = glob(os.path.join(image_dir, '*'))
+# MASK_PATH = glob(os.path.join(mask_dir, '*'))
+# 使用 glob 获取文件路径
+IMG_PATH = glob(os.path.join(image_dir, 'hgg_Brats18_CBICA_ATD_*'))
+MASK_PATH = glob(os.path.join(mask_dir, 'hgg_Brats18_CBICA_ATD_*'))
+
+print(f"Number of image paths: {len(IMG_PATH)}")
+print(f"Number of mask paths: {len(MASK_PATH)}")
 
 def parse_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--name', default=None,
                         help='model name: (default: arch+timestamp)')
-    parser.add_argument('--arch', '-a', metavar='ARCH', default='unet3d',
+    parser.add_argument('--arch', '-a', metavar='ARCH', default='Unet3D',
                         choices=arch_names,
                         help='model architecture: ' +
                             ' | '.join(arch_names) +
                             ' (default: Unet3D)')
     parser.add_argument('--deepsupervision', default=False, type=str2bool)
-    parser.add_argument('--dataset', default="jiu0Monkey",
+    parser.add_argument('--dataset', default="BraTs",
                         help='dataset name')
     parser.add_argument('--input-channels', default=4, type=int,
                         help='input channels')
@@ -68,9 +81,9 @@ def parse_args():
                         help='loss: ' +
                             ' | '.join(loss_names) +
                             ' (default: BCEDiceLoss)')
-    parser.add_argument('--epochs', default=10000, type=int, metavar='N',
+    parser.add_argument('--epochs', default=100, type=int, metavar='N',
                         help='number of total epochs to run')
-    parser.add_argument('--early-stop', default=20, type=int,
+    parser.add_argument('--early-stop', default=5, type=int,
                         metavar='N', help='early stopping (default: 20)')
     parser.add_argument('-b', '--batch-size', default=2, type=int,
                         metavar='N', help='mini-batch size (default: 16)')
@@ -202,19 +215,27 @@ def main():
             args.name = '%s_%s_wDS' %(args.dataset, args.arch)
         else:
             args.name = '%s_%s_woDS' %(args.dataset, args.arch)
-    if not os.path.exists('models/%s' %args.name):
-        os.makedirs('models/%s' %args.name)
+    # if not os.path.exists('models/%s' %args.name):
+    #     os.makedirs('models/%s' %args.name)
+
+    # 修改保存路径
+    # save_dir = os.path.join('..', '..', '..', 'data', 'model3D', 'Unet3D', args.name)
+    save_dir = os.path.join('..', '..', '..', 'data', 'model3D', 'Unet3D', args.name)
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
 
     print('Config -----')
     for arg in vars(args):
         print('%s: %s' %(arg, getattr(args, arg)))
     print('------------')
 
-    with open('models/%s/args.txt' %args.name, 'w') as f:
+    # with open('models/%s/args.txt' %args.name, 'w') as f:
+    with open(os.path.join(save_dir, 'args.txt'), 'w') as f:
         for arg in vars(args):
             print('%s: %s' %(arg, getattr(args, arg)), file=f)
 
-    joblib.dump(args, 'models/%s/args.pkl' %args.name)
+    # joblib.dump(args, 'models/%s/args.pkl' %args.name)
+    joblib.dump(args, os.path.join(save_dir, 'args.pkl'))
 
     # define loss function (criterion)
     if args.loss == 'BCEWithLogitsLoss':
@@ -293,13 +314,16 @@ def main():
             val_log['dice'],
         ], index=['epoch', 'lr', 'loss', 'iou', 'dice' ,'val_loss', 'val_iou', 'val_dice'])
 
+        log = pd.concat([log, pd.DataFrame([tmp.values], columns=tmp.index)], ignore_index=True)
         log = log.append(tmp, ignore_index=True)
-        log.to_csv('models/%s/log.csv' %args.name, index=False)
+        # log.to_csv('models/%s/log.csv' %args.name, index=False)
+        log.to_csv(os.path.join(save_dir, 'log.csv'), index=False)
 
         trigger += 1
 
         if val_log['iou'] > best_iou:
-            torch.save(model.state_dict(), 'models/%s/model.pth' %args.name)
+            # torch.save(model.state_dict(), 'models/%s/model.pth' %args.name)
+            torch.save(model.state_dict(), os.path.join(save_dir, 'model.pth'))
             best_iou = val_log['iou']
             print("=> saved best model")
             trigger = 0

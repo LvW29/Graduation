@@ -43,12 +43,15 @@ loss_names.append('BCEWithLogitsLoss')
 # 构建图像和掩码目录的路径
 # image_dir = os.path.join('..', '..', '..', '..', 'autodl-tmp', '2D', 'trainImage')
 # mask_dir = os.path.join('..', '..', '..', '..', 'autodl-tmp', '2D', 'trainMask')
-image_dir = os.path.join('..', '..', 'data', 'processed', '2D', 'trainImage')
-mask_dir = os.path.join('..', '..', 'data', 'processed', '2D', 'trainMask')
+image_dir = os.path.join('..', '..', '..', 'data', 'processed', '2D', 'trainImage')
+mask_dir = os.path.join('..', '..', '..', 'data', 'processed', '2D', 'trainMask')
 
 # 使用 glob 获取文件路径
-IMG_PATH = glob(os.path.join(image_dir, '*'))
-MASK_PATH = glob(os.path.join(mask_dir, '*'))
+# IMG_PATH = glob(os.path.join(image_dir, '*'))
+# MASK_PATH = glob(os.path.join(mask_dir, '*'))
+# 使用 glob 获取文件路径
+IMG_PATH = glob(os.path.join(image_dir, 'Brats18_CBICA_*'))
+MASK_PATH = glob(os.path.join(mask_dir, 'Brats18_CBICA_*'))
 
 print(f"Number of image paths: {len(IMG_PATH)}")
 print(f"Number of mask paths: {len(MASK_PATH)}")
@@ -58,13 +61,13 @@ def parse_args():
 
     parser.add_argument('--name', default=None,
                         help='model name: (default: arch+timestamp)')
-    parser.add_argument('--arch', '-a', metavar='ARCH', default='Unet',
+    parser.add_argument('--arch', '-a', metavar='ARCH', default='Unet2D',
                         choices=arch_names,
                         help='model architecture: ' +
                             ' | '.join(arch_names) +
                             ' (default: Unet)')
     parser.add_argument('--deepsupervision', default=False, type=str2bool)
-    parser.add_argument('--dataset', default="jiu0Monkey",
+    parser.add_argument('--dataset', default="BraTs",
                         help='dataset name')
     parser.add_argument('--input-channels', default=4, type=int,
                         help='input channels')
@@ -78,9 +81,9 @@ def parse_args():
                         help='loss: ' +
                             ' | '.join(loss_names) +
                             ' (default: BCEDiceLoss)')
-    parser.add_argument('--epochs', default=10000, type=int, metavar='N',
+    parser.add_argument('--epochs', default=100, type=int, metavar='N',
                         help='number of total epochs to run')
-    parser.add_argument('--early-stop', default=20, type=int,
+    parser.add_argument('--early-stop', default=5, type=int,
                         metavar='N', help='early stopping (default: 20)')
     parser.add_argument('-b', '--batch-size', default=18, type=int,
                         metavar='N', help='mini-batch size (default: 16)')
@@ -204,19 +207,27 @@ def main():
             args.name = '%s_%s_wDS' %(args.dataset, args.arch)
         else:
             args.name = '%s_%s_woDS' %(args.dataset, args.arch)
-    if not os.path.exists('models/%s' %args.name):
-        os.makedirs('models/%s' %args.name)
+    # if not os.path.exists('models/%s' %args.name):
+    #     os.makedirs('models/%s' %args.name)
+
+    # 修改保存路径
+    # save_dir = os.path.join('..', '..', '..', 'data', 'model2D', 'UNet2D', args.name)
+    save_dir = os.path.join('..', '..', '..', 'data', 'model2D', 'UNet2D', args.name)
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
 
     print('Config -----')
     for arg in vars(args):
         print('%s: %s' %(arg, getattr(args, arg)))
     print('------------')
 
-    with open('models/%s/args.txt' %args.name, 'w') as f:
+    # with open('models/%s/args.txt' %args.name, 'w') as f:
+    with open(os.path.join(save_dir, 'args.txt'), 'w') as f:
         for arg in vars(args):
             print('%s: %s' %(arg, getattr(args, arg)), file=f)
 
-    joblib.dump(args, 'models/%s/args.pkl' %args.name)
+    # joblib.dump(args, 'models/%s/args.pkl' %args.name)
+    joblib.dump(args, os.path.join(save_dir, 'args.pkl'))
 
     # 检测是否支持CUDA
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -297,12 +308,14 @@ def main():
 
         log = pd.concat([log, pd.DataFrame([tmp.values], columns=tmp.index)], ignore_index=True)
         # log = pd.concat([log, tmp], ignore_index=True)
-        log.to_csv('models/%s/log.csv' %args.name, index=False)
+        # log.to_csv('models/%s/log.csv' %args.name, index=False)
+        log.to_csv(os.path.join(save_dir, 'log.csv'), index=False)
 
         trigger += 1
 
         if val_log['iou'] > best_iou:
-            torch.save(model.state_dict(), 'models/%s/model.pth' %args.name)
+            # torch.save(model.state_dict(), 'models/%s/model.pth' %args.name)
+            torch.save(model.state_dict(), os.path.join(save_dir, 'model.pth'))
             best_iou = val_log['iou']
             print("=> saved best model")
             trigger = 0

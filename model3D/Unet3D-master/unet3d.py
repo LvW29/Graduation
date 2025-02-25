@@ -53,9 +53,9 @@ class unet3dUp(nn.Module):
         return x
 
 
-class unet3d(nn.Module):
+class Unet3D(nn.Module):
     def __init__(self, args):
-        super(unet3d, self).__init__()
+        super(Unet3D, self).__init__()
         init_channels = 4
         class_nums = 3
         batch_norm = True
