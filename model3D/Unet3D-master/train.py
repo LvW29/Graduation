@@ -41,17 +41,17 @@ loss_names = list(losses.__dict__.keys())
 loss_names.append('BCEWithLogitsLoss')
 
 # 构建图像和掩码目录的路径
-# image_dir = os.path.join('..', '..', '..', '..', 'autodl-tmp', '3D', 'trainImage')
-# mask_dir = os.path.join('..', '..', '..', '..', 'autodl-tmp', '3D', 'trainMask')
-image_dir = os.path.join('..', '..', '..', 'data', 'processed', '3D', 'trainImage')
-mask_dir = os.path.join('..', '..', '..', 'data', 'processed', '3D', 'trainMask')
+image_dir = os.path.join('autodl-tmp', '3D', 'trainImage')
+mask_dir = os.path.join('autodl-tmp', '3D', 'trainMask')
+# image_dir = os.path.join('..', '..', '..', 'data', 'processed', '3D', 'trainImage')
+# mask_dir = os.path.join('..', '..', '..', 'data', 'processed', '3D', 'trainMask')
 
 # 使用 glob 获取文件路径
-# IMG_PATH = glob(os.path.join(image_dir, '*'))
-# MASK_PATH = glob(os.path.join(mask_dir, '*'))
+IMG_PATH = glob(os.path.join(image_dir, '*'))
+MASK_PATH = glob(os.path.join(mask_dir, '*'))
 # 使用 glob 获取文件路径
-IMG_PATH = glob(os.path.join(image_dir, 'hgg_Brats18_CBICA_ATD_*'))
-MASK_PATH = glob(os.path.join(mask_dir, 'hgg_Brats18_CBICA_ATD_*'))
+# IMG_PATH = glob(os.path.join(image_dir, 'hgg_Brats18_CBICA_ATD_*'))
+# MASK_PATH = glob(os.path.join(mask_dir, 'hgg_Brats18_CBICA_ATD_*'))
 
 print(f"Number of image paths: {len(IMG_PATH)}")
 print(f"Number of mask paths: {len(MASK_PATH)}")
@@ -219,8 +219,8 @@ def main():
     #     os.makedirs('models/%s' %args.name)
 
     # 修改保存路径
+    save_dir = os.path.join('autodl-tmp', 'model3D', 'Unet3D', args.name)
     # save_dir = os.path.join('..', '..', '..', 'data', 'model3D', 'Unet3D', args.name)
-    save_dir = os.path.join('..', '..', '..', 'data', 'model3D', 'Unet3D', args.name)
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
@@ -315,7 +315,7 @@ def main():
         ], index=['epoch', 'lr', 'loss', 'iou', 'dice' ,'val_loss', 'val_iou', 'val_dice'])
 
         log = pd.concat([log, pd.DataFrame([tmp.values], columns=tmp.index)], ignore_index=True)
-        log = log.append(tmp, ignore_index=True)
+        # log = log.append(tmp, ignore_index=True)
         # log.to_csv('models/%s/log.csv' %args.name, index=False)
         log.to_csv(os.path.join(save_dir, 'log.csv'), index=False)
 

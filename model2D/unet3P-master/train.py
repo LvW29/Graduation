@@ -14,7 +14,7 @@ import numpy as np
 from tqdm import tqdm
 
 from sklearn.model_selection import train_test_split
-from sklearn.externals import joblib
+import joblib
 from skimage.io import imread
 
 import torch
@@ -40,8 +40,21 @@ arch_names = list(UNet_3Plus.__dict__.keys())
 loss_names = list(losses.__dict__.keys())
 loss_names.append('BCEWithLogitsLoss')
 
-IMG_PATH = glob(r"..\..\data\processed\2D\trainImage\*")
-MASK_PATH = glob(r"..\..\data\processed\2D\trainMask\*")
+# 构建图像和掩码目录的路径
+image_dir = os.path.join('autodl-tmp', '2D', 'trainImage')
+mask_dir = os.path.join('autodl-tmp', '2D', 'trainMask')
+# image_dir = os.path.join('..', '..', '..', 'data', 'processed', '2D', 'trainImage')
+# mask_dir = os.path.join('..', '..', '..', 'data', 'processed', '2D', 'trainMask')
+
+# 使用 glob 获取文件路径
+IMG_PATH = glob(os.path.join(image_dir, '*'))
+MASK_PATH = glob(os.path.join(mask_dir, '*'))
+# 使用 glob 获取文件路径
+# IMG_PATH = glob(os.path.join(image_dir, 'Brats18_CBICA_*'))
+# MASK_PATH = glob(os.path.join(mask_dir, 'Brats18_CBICA_*'))
+
+print(f"Number of image paths: {len(IMG_PATH)}")
+print(f"Number of mask paths: {len(MASK_PATH)}")
 
 
 def parse_args():
@@ -55,7 +68,7 @@ def parse_args():
                             ' | '.join(arch_names) +
                             ' (default: UNet_3Plus)')
     parser.add_argument('--deepsupervision', default=False, type=str2bool)
-    parser.add_argument('--dataset', default="jiu0Monkey",
+    parser.add_argument('--dataset', default="BraTs",
                         help='dataset name')
     parser.add_argument('--input-channels', default=4, type=int,
                         help='input channels')
@@ -69,11 +82,11 @@ def parse_args():
                         help='loss: ' +
                             ' | '.join(loss_names) +
                             ' (default: BCEDiceLoss)')
-    parser.add_argument('--epochs', default=10000, type=int, metavar='N',
+    parser.add_argument('--epochs', default=100, type=int, metavar='N',
                         help='number of total epochs to run')
-    parser.add_argument('--early-stop', default=10, type=int,
+    parser.add_argument('--early-stop', default=5, type=int,
                         metavar='N', help='early stopping (default: 20)')
-    parser.add_argument('-b', '--batch-size', default=3, type=int,
+    parser.add_argument('-b', '--batch-size', default=16, type=int,
                         metavar='N', help='mini-batch size (default: 16)')
     parser.add_argument('--optimizer', default='Adam',
                         choices=['Adam', 'SGD'],
@@ -111,15 +124,15 @@ class AverageMeter(object):
         self.avg = self.sum / self.count
 
 
-def train(args, train_loader, model, criterion, optimizer, epoch, scheduler=None):
+def train(args, train_loader, model, criterion, optimizer, epoch, scheduler=None, device=None):
     losses = AverageMeter()
     ious = AverageMeter()
     dices = AverageMeter()
     model.train()
 
     for i, (input, target) in tqdm(enumerate(train_loader), total=len(train_loader)):
-        input = input.cuda()
-        target = target.cuda()
+        input = input.to(device)
+        target = target.to(device)
 
         # compute output
         if args.deepsupervision:
@@ -153,7 +166,7 @@ def train(args, train_loader, model, criterion, optimizer, epoch, scheduler=None
     return log
 
 
-def validate(args, val_loader, model, criterion):
+def validate(args, val_loader, model, criterion, device=None):
     losses = AverageMeter()
     ious = AverageMeter()
     dices = AverageMeter()
@@ -163,8 +176,8 @@ def validate(args, val_loader, model, criterion):
 
     with torch.no_grad():
         for i, (input, target) in tqdm(enumerate(val_loader), total=len(val_loader)):
-            input = input.cuda()
-            target = target.cuda()
+            input = input.to(device)
+            target = target.to(device)
 
             # compute output
             if args.deepsupervision:
@@ -202,25 +215,37 @@ def main():
             args.name = '%s_%s_wDS' %(args.dataset, args.arch)
         else:
             args.name = '%s_%s_woDS' %(args.dataset, args.arch)
-    if not os.path.exists('models/%s' %args.name):
-        os.makedirs('models/%s' %args.name)
+    # if not os.path.exists('models/%s' %args.name):
+    #     os.makedirs('models/%s' %args.name)
+    # 修改保存路径
+    save_dir = os.path.join('autodl-tmp', 'model2D', 'Unet2D', args.name)
+    # save_dir = os.path.join('..', '..', '..', 'data', 'model2D', 'UNet2D', args.name)
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+
 
     print('Config -----')
     for arg in vars(args):
         print('%s: %s' %(arg, getattr(args, arg)))
     print('------------')
 
-    with open('models/%s/args.txt' %args.name, 'w') as f:
+    # with open('models/%s/args.txt' %args.name, 'w') as f:
+    with open(os.path.join(save_dir, 'args.txt'), 'w') as f:
         for arg in vars(args):
             print('%s: %s' %(arg, getattr(args, arg)), file=f)
 
-    joblib.dump(args, 'models/%s/args.pkl' %args.name)
+    # joblib.dump(args, 'models/%s/args.pkl' %args.name)
+    joblib.dump(args, os.path.join(save_dir, 'args.pkl'))
+
+    # 检测是否支持CUDA
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 
     # define loss function (criterion)
     if args.loss == 'BCEWithLogitsLoss':
-        criterion = nn.BCEWithLogitsLoss().cuda()
+        criterion = nn.BCEWithLogitsLoss().to(device)
     else:
-        criterion = losses.__dict__[args.loss]().cuda()
+        criterion = losses.__dict__[args.loss]().to(device)
 
     cudnn.benchmark = True
 
@@ -236,7 +261,7 @@ def main():
     # create model
     print("=> creating model %s" %args.arch)
     model = UNet_3Plus.__dict__[args.arch](args)
-    model = model.cuda()
+    model = model.to(device)
     # model.load_state_dict(torch.load('models/%s/model.pth' % args.name))
 
     print(count_params(model))
@@ -291,13 +316,16 @@ def main():
             val_log['dice'],
         ], index=['epoch', 'lr', 'loss', 'iou', 'dice' ,'val_loss', 'val_iou', 'val_dice'])
 
-        log = log.append(tmp, ignore_index=True)
-        log.to_csv('models/%s/log.csv' %args.name, index=False)
+        log = pd.concat([log, pd.DataFrame([tmp.values], columns=tmp.index)], ignore_index=True)
+        # log = pd.concat([log, tmp], ignore_index=True)
+        # log.to_csv('models/%s/log.csv' %args.name, index=False)
+        log.to_csv(os.path.join(save_dir, 'log.csv'), index=False)
 
         trigger += 1
 
         if val_log['iou'] > best_iou:
-            torch.save(model.state_dict(), 'models/%s/model.pth' %args.name)
+            # torch.save(model.state_dict(), 'models/%s/model.pth' %args.name)
+            torch.save(model.state_dict(), os.path.join(save_dir, 'model.pth'))
             best_iou = val_log['iou']
             print("=> saved best model")
             trigger = 0
