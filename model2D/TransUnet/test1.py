@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 import time
 import os
 import math
@@ -29,7 +28,7 @@ from torchvision import datasets, models, transforms
 
 from dataset import Dataset
 
-import FCN
+import unet
 from metrics import dice_coef, batch_iou, mean_iou, iou_score ,ppv,sensitivity
 import losses
 from utils import str2bool, count_params
@@ -40,8 +39,8 @@ import imageio
 # 构建图像和掩码目录的路径
 # image_dir = os.path.join('..', '..', '..', 'autodl-tmp', '2D', 'trainImage')
 # mask_dir = os.path.join('..', '..', '..', 'autodl-tmp', '2D', 'trainMask')
-image_dir = os.path.join('..', '..', '..', 'data', 'processed', '2D', 'testImage')
-mask_dir = os.path.join('..', '..', '..', 'data', 'processed', '2D', 'testMask')
+image_dir = os.path.join('..', '..', 'data', 'processed', '2D', 'testImage')
+mask_dir = os.path.join('..', '..', 'data', 'processed', '2D', 'testMask')
 
 # 使用 glob 获取文件路径
 IMG_PATH = glob(os.path.join(image_dir, '*'))
@@ -51,12 +50,13 @@ print(f"Number of image paths: {len(IMG_PATH)}")
 print(f"Number of mask paths: {len(MASK_PATH)}")
 
 # 先执行GetPicture 再执行 Calculate
-MODE = 'Calculate' #'Calculate'
+# MODE = 'GetPicture' #'Calculate'
+MODE = 'Calculate'
 
 def parse_args():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--name', default='BraTs_FCN8s_woDS',
+    parser.add_argument('--name', default='jiu0Monkey_Unet_woDS',
                         help='model name')
     parser.add_argument('--mode', default=MODE,
                         help='GetPicture or Calculate')
@@ -69,26 +69,21 @@ def parse_args():
 def main():
     val_args = parse_args()
 
-    # 构建要加载的文件路径
-    models_dir = os.path.join('..', '..', '..', 'data', 'model2D', 'FCN2D')
-    args_file_path = os.path.join(models_dir, val_args.name, 'args.pkl')
-    args = joblib.load(args_file_path)
+    args = joblib.load('models/%s/args.pkl' %val_args.name)
 
-    # 构建输出目录的路径
-    output_dir = os.path.join(models_dir, 'output')
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    if not os.path.exists('output/%s' %args.name):
+        os.makedirs('output/%s' %args.name)
 
     print('Config -----')
     for arg in vars(args):
         print('%s: %s' %(arg, getattr(args, arg)))
     print('------------')
 
-    joblib.dump(args, args_file_path)
+    joblib.dump(args, 'models/%s/args.pkl' %args.name)
 
     # create model
     print("=> creating model %s" %args.arch)
-    model = FCN.__dict__[args.arch](args)
+    model = unet.__dict__[args.arch](args)
 
     model = model.cuda()
 
@@ -102,13 +97,7 @@ def main():
     #train_img_paths, val_img_paths, train_mask_paths, val_mask_paths = \
     #   train_test_split(img_paths, mask_paths, test_size=0.2, random_state=41)
 
-    # 构建具体的 model.pth 文件路径
-    model_file_path = os.path.join(models_dir, args.name, 'model.pth')
-
-    # 加载模型状态字典
-    model.load_state_dict(torch.load(model_file_path))
-    # model.load_state_dict(torch.load('models/%s/model.pth' %args.name))
-
+    model.load_state_dict(torch.load('models/%s/model.pth' %args.name))
     model.eval()
 
     val_dataset = Dataset(args, val_img_paths, val_mask_paths)
@@ -181,14 +170,14 @@ def main():
                                     rgbPic[idx, idy, 0] = 255
                                     rgbPic[idx, idy, 1] = 255
                                     rgbPic[idx, idy, 2] = 0
-                        imsave(os.path.join(output_dir, rgbName), rgbPic)
+                        imsave('output/%s/'%args.name + rgbName,rgbPic)
 
             torch.cuda.empty_cache()
         """
         将验证集中的GT numpy格式转换成图片格式并保存
         """
         print("Saving GT,numpy to picture")
-        val_gt_path = os.path.join(output_dir, "GT")
+        val_gt_path = 'output/%s/'%args.name + "GT/"
         if not os.path.exists(val_gt_path):
             os.mkdir(val_gt_path)
         for idx in tqdm(range(len(val_mask_paths))):
@@ -220,8 +209,7 @@ def main():
                         GtColor[idx, idy, 2] = 0
 
             #imsave(val_gt_path + rgbName, GtColor)
-            image_save_path = os.path.join(val_gt_path, rgbName)
-            imageio.imwrite(image_save_path, GtColor)
+            imageio.imwrite(val_gt_path + rgbName, GtColor)
             """
             mask_path = val_mask_paths[idx]
             name = os.path.basename(mask_path)
@@ -278,8 +266,8 @@ def main():
         tcPbList = []
         etPbList = []
 
-        maskPath = glob(os.path.join(output_dir, "GT", "*.png"))
-        pbPath = glob(os.path.join(output_dir, "*.png"))
+        maskPath = glob("output/%s/" % args.name + "GT\*.png")
+        pbPath = glob("output/%s/" % args.name + "*.png")
         if len(maskPath) == 0:
             print("请先生成图片!")
             return
