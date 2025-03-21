@@ -32,12 +32,18 @@ import unet3d
 from metrics import dice_coef, batch_iou, mean_iou, iou_score ,ppv,sensitivity
 import losses
 from utils import str2bool, count_params
-from sklearn.externals import joblib
+import joblib
 import SimpleITK as sitk
 import imageio
 
-IMG_PATH = glob(r"..\..\data\processed\3D\testImage\*")
-MASK_PATH = glob(r"..\..\data\processed\3D\testMask\*")
+# 构建图像和掩码目录的路径
+# image_dir = os.path.join('autodl-tmp', '3D', 'trainImage')
+# mask_dir = os.path.join('autodl-tmp', '3D', 'trainMask')
+image_dir = os.path.join('..', '..', '..', 'data', 'processed', '3D', 'testImage')
+mask_dir = os.path.join('..', '..', '..', 'data', 'processed', '3D', 'testMask')
+
+IMG_PATH = glob(os.path.join(image_dir, '*'))
+MASK_PATH = glob(os.path.join(mask_dir, '*'))
 
 # 先执行GetPicture 再执行 Calculate
 MODE = 'GetPicture' #'Calculate'
@@ -59,7 +65,7 @@ et_Hausdorf = []
 def parse_args():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--name', default='jiu0Monkey_unet3d_woDS',
+    parser.add_argument('--name', default='BraTs_Unet3d_woDS',
                         help='model name')
     parser.add_argument('--mode', default=MODE,
                         help='')
@@ -122,16 +128,26 @@ def CalculateWTTCET(wtpbregion,wtmaskregion,tcpbregion,tcmaskregion,etpbregion,e
 def main():
     val_args = parse_args()
 
-    args = joblib.load('models/%s/args.pkl' %val_args.name)
-    if not os.path.exists('output/%s' %args.name):
-        os.makedirs('output/%s' %args.name)
+    # args = joblib.load('models/%s/args.pkl' %val_args.name)
+    # if not os.path.exists('output/%s' %args.name):
+    #     os.makedirs('output/%s' %args.name)
+
+    # 构建要加载的文件路径
+    models_dir = os.path.join('..', '..', '..', 'data', 'model3D', 'Unet3D')
+    args_file_path = os.path.join(models_dir, val_args.name, 'args.pkl')
+    args = joblib.load(args_file_path)
+
+    # 构建输出目录的路径
+    output_dir = os.path.join(models_dir, 'output')
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
     print('Config -----')
     for arg in vars(args):
         print('%s: %s' %(arg, getattr(args, arg)))
     print('------------')
 
-    joblib.dump(args, 'models/%s/args.pkl' %args.name)
-
+    # joblib.dump(args, 'models/%s/args.pkl' %args.name)
+    joblib.dump(args, args_file_path)
     # create model
     print("=> creating model %s" %args.arch)
     model = unet3d.__dict__[args.arch](args)
@@ -139,8 +155,10 @@ def main():
     model = model.cuda()
 
     # Data loading code
-    img_paths = glob(r'D:\Project\CollegeDesign\dataset\BraTs3D\testImage\*')
-    mask_paths = glob(r'D:\Project\CollegeDesign\dataset\BraTs3D\testMask\*')
+    # img_paths = glob(r'D:\Project\CollegeDesign\dataset\BraTs3D\testImage\*')
+    # mask_paths = glob(r'D:\Project\CollegeDesign\dataset\BraTs3D\testMask\*')
+    img_paths = glob(os.path.join(image_dir, '*'))
+    mask_paths = glob(os.path.join(mask_dir, '*'))
 
     val_img_paths = img_paths
     val_mask_paths = mask_paths
@@ -148,7 +166,10 @@ def main():
     #train_img_paths, val_img_paths, train_mask_paths, val_mask_paths = \
     #   train_test_split(img_paths, mask_paths, test_size=0.2, random_state=41)
 
-    model.load_state_dict(torch.load('models/%s/model.pth' %args.name))
+    # 构建具体的 model.pth 文件路径
+    model_file_path = os.path.join(models_dir, args.name, 'model.pth')
+    model.load_state_dict(torch.load(model_file_path))
+    # model.load_state_dict(torch.load('models/%s/model.pth' %args.name))
     model.eval()
 
     val_dataset = Dataset(args, val_img_paths, val_mask_paths)
@@ -159,7 +180,7 @@ def main():
         pin_memory=True,
         drop_last=False)
 
-    savedir = 'output/%s/'%args.name
+    savedir = os.path.join(output_dir, "output")
     if not os.path.exists(savedir):
         os.mkdir(savedir)
 

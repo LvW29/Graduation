@@ -43,15 +43,15 @@ loss_names.append('BCEWithLogitsLoss')
 # 构建图像和掩码目录的路径
 # image_dir = os.path.join('autodl-tmp', '3D', 'trainImage')
 # mask_dir = os.path.join('autodl-tmp', '3D', 'trainMask')
-image_dir = os.path.join('..', '..', '..', 'data', 'processed', '3D', 'trainImage')
-mask_dir = os.path.join('..', '..', '..', 'data', 'processed', '3D', 'trainMask')
+image_dir = os.path.join('..', '..', '..', 'data', 'processed', '3D-noblock', 'trainImage')
+mask_dir = os.path.join('..', '..', '..', 'data', 'processed', '3D-noblock', 'trainMask')
 
 # 使用 glob 获取文件路径
 # IMG_PATH = glob(os.path.join(image_dir, '*'))
 # MASK_PATH = glob(os.path.join(mask_dir, '*'))
 # 使用 glob 获取文件路径
-IMG_PATH = glob(os.path.join(image_dir, 'hgg_Brats18_CBICA_ATD_*'))
-MASK_PATH = glob(os.path.join(mask_dir, 'hgg_Brats18_CBICA_ATD_*'))
+IMG_PATH = glob(os.path.join(image_dir, 'hgg_Brats18_CBICA_*'))
+MASK_PATH = glob(os.path.join(mask_dir, 'hgg_Brats18_CBICA_*'))
 
 print(f"Number of image paths: {len(IMG_PATH)}")
 print(f"Number of mask paths: {len(MASK_PATH)}")
@@ -85,7 +85,7 @@ def parse_args():
                         help='number of total epochs to run')
     parser.add_argument('--early-stop', default=5, type=int,
                         metavar='N', help='early stopping (default: 20)')
-    parser.add_argument('-b', '--batch-size', default=2, type=int,
+    parser.add_argument('-b', '--batch-size', default=1, type=int,
                         metavar='N', help='mini-batch size (default: 16)')
     parser.add_argument('--optimizer', default='Adam',
                         choices=['Adam', 'SGD'],
