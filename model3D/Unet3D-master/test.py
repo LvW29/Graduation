@@ -39,8 +39,8 @@ import imageio
 # 构建图像和掩码目录的路径
 # image_dir = os.path.join('autodl-tmp', '3D', 'trainImage')
 # mask_dir = os.path.join('autodl-tmp', '3D', 'trainMask')
-image_dir = os.path.join('..', '..', '..', 'data', 'processed', '3D', 'testImage')
-mask_dir = os.path.join('..', '..', '..', 'data', 'processed', '3D', 'testMask')
+image_dir = os.path.join('..', '..', '..', 'autodl-tmp', '3D', 'trainImage')
+mask_dir = os.path.join('..', '..', '..', 'autodl-tmp', '3D', 'trainMask')
 
 IMG_PATH = glob(os.path.join(image_dir, '*'))
 MASK_PATH = glob(os.path.join(mask_dir, '*'))
@@ -65,7 +65,7 @@ et_Hausdorf = []
 def parse_args():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--name', default='BraTs_Unet3d_woDS',
+    parser.add_argument('--name', default='BraTs_Unet3D_noblock_woDS',
                         help='model name')
     parser.add_argument('--mode', default=MODE,
                         help='')
@@ -133,14 +133,14 @@ def main():
     #     os.makedirs('output/%s' %args.name)
 
     # 构建要加载的文件路径
-    models_dir = os.path.join('..', '..', '..', 'data', 'model3D', 'Unet3D')
-    args_file_path = os.path.join(models_dir, val_args.name, 'args.pkl')
+    models_dir = os.path.join('..', '..', '..', 'autodl-tmp', 'model3D', 'Unet3D', val_args.name)
+    args_file_path = os.path.join(models_dir, 'args.pkl')
     args = joblib.load(args_file_path)
 
     # 构建输出目录的路径
-    output_dir = os.path.join(models_dir, 'output')
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    savedir = os.path.join(models_dir, 'output')
+    if not os.path.exists(savedir):
+        os.makedirs(savedir)
     print('Config -----')
     for arg in vars(args):
         print('%s: %s' %(arg, getattr(args, arg)))
@@ -167,7 +167,7 @@ def main():
     #   train_test_split(img_paths, mask_paths, test_size=0.2, random_state=41)
 
     # 构建具体的 model.pth 文件路径
-    model_file_path = os.path.join(models_dir, args.name, 'model.pth')
+    model_file_path = os.path.join(models_dir, 'model.pth')
     model.load_state_dict(torch.load(model_file_path))
     # model.load_state_dict(torch.load('models/%s/model.pth' %args.name))
     model.eval()
@@ -179,10 +179,6 @@ def main():
         shuffle=False,
         pin_memory=True,
         drop_last=False)
-
-    savedir = os.path.join(output_dir, "output")
-    if not os.path.exists(savedir):
-        os.mkdir(savedir)
 
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')

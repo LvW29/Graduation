@@ -34,17 +34,19 @@ from metrics import dice_coef, batch_iou, mean_iou, iou_score
 import losses
 from utils import str2bool, count_params
 import pandas as pd
-import unet3d
+import unet3d_trans
 
-arch_names = list(unet3d.__dict__.keys())
+arch_names = list(unet3d_trans.__dict__.keys())
 loss_names = list(losses.__dict__.keys())
 loss_names.append('BCEWithLogitsLoss')
 
 # 构建图像和掩码目录的路径
 # image_dir = os.path.join('autodl-tmp', '3D', 'trainImage')
 # mask_dir = os.path.join('autodl-tmp', '3D', 'trainMask')
-image_dir = os.path.join('..', '..', '..', 'data', 'processed', '3D-noblock', 'trainImage')
-mask_dir = os.path.join('..', '..', '..', 'data', 'processed', '3D-noblock', 'trainMask')
+image_dir = os.path.join('..', '..', '..', '..', 'autodl-tmp', '3D', 'trainImage')
+mask_dir = os.path.join('..', '..', '..', '..', 'autodl-tmp', '3D', 'trainMask')
+print(image_dir)
+print(mask_dir)
 
 # 使用 glob 获取文件路径
 # IMG_PATH = glob(os.path.join(image_dir, '*'))
@@ -56,12 +58,16 @@ MASK_PATH = glob(os.path.join(mask_dir, 'hgg_Brats18_CBICA_*'))
 print(f"Number of image paths: {len(IMG_PATH)}")
 print(f"Number of mask paths: {len(MASK_PATH)}")
 
+# 添加设备选择逻辑
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"Using device: {device}")
+
 def parse_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--name', default=None,
                         help='model name: (default: arch+timestamp)')
-    parser.add_argument('--arch', '-a', metavar='ARCH', default='Unet3D',
+    parser.add_argument('--arch', '-a', metavar='ARCH', default='transUnet',
                         choices=arch_names,
                         help='model architecture: ' +
                             ' | '.join(arch_names) +
@@ -83,9 +89,9 @@ def parse_args():
                             ' (default: BCEDiceLoss)')
     parser.add_argument('--epochs', default=100, type=int, metavar='N',
                         help='number of total epochs to run')
-    parser.add_argument('--early-stop', default=5, type=int,
+    parser.add_argument('--early-stop', default=10, type=int,
                         metavar='N', help='early stopping (default: 20)')
-    parser.add_argument('-b', '--batch-size', default=1, type=int,
+    parser.add_argument('-b', '--batch-size', default=2, type=int,
                         metavar='N', help='mini-batch size (default: 16)')
     parser.add_argument('--optimizer', default='Adam',
                         choices=['Adam', 'SGD'],
@@ -130,8 +136,8 @@ def train(args, train_loader, model, criterion, optimizer, epoch, scheduler=None
     model.train()
 
     for i, (input, target) in tqdm(enumerate(train_loader), total=len(train_loader)):
-        input = input.cuda()
-        target = target.cuda()
+        input = input.to(device)
+        target = target.to(device)
 
         # compute output
         if args.deepsupervision:
@@ -175,8 +181,8 @@ def validate(args, val_loader, model, criterion):
 
     with torch.no_grad():
         for i, (input, target) in tqdm(enumerate(val_loader), total=len(val_loader)):
-            input = input.cuda()
-            target = target.cuda()
+            input = input.to(device)
+            target = target.to(device)
 
             # compute output
             if args.deepsupervision:
@@ -209,7 +215,6 @@ def main():
     args = parse_args()
     #args.dataset = "datasets"
 
-
     if args.name is None:
         if args.deepsupervision:
             args.name = '%s_%s_wDS' %(args.dataset, args.arch)
@@ -219,7 +224,7 @@ def main():
     #     os.makedirs('models/%s' %args.name)
 
     # 修改保存路径
-    save_dir = os.path.join('autodl-tmp', 'model3D', 'Unet3D', args.name)
+    save_dir = os.path.join('autodl-tmp', 'model3D', 'Unet3D_trans', args.name)
     # save_dir = os.path.join('..', '..', '..', 'data', 'model3D', 'Unet3D', args.name)
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
@@ -257,8 +262,8 @@ def main():
 
     # create model
     print("=> creating model %s" %args.arch)
-    model = unet3d.__dict__[args.arch](args)
-    model = model.cuda()
+    model = unet3d_trans.__dict__[args.arch](args)
+    model = model.to(device)
     #model._initialize_weights()
     # model.load_state_dict(torch.load('models/%s/model.pth' % args.name))
 
