@@ -80,3 +80,15 @@ class Unet3D(nn.Module):
             elif isinstance(m, nn.BatchNorm3d):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
+
+if __name__ == '__main__':
+    with torch.no_grad():
+        import os
+        os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        x = torch.rand((1, 4, 32, 160, 160), device=device)
+        # model = Unet1(in_channels=4, base_channels=16, num_classes=4)
+        model = Unet3D(args="")
+        model.to(device)
+        output = model(x)
+        print('output:', output.shape)

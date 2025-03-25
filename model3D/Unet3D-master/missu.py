@@ -95,7 +95,7 @@ class DeUp_Cat(nn.Module):
         self.conv2 = nn.ConvTranspose3d(out_channels, out_channels, kernel_size=2, stride=2)
         self.conv3 = nn.Conv3d(out_channels*2, out_channels, kernel_size=1)
 
-    def forward(self, x, prev):
+    def forward(self, x, prev): # x4, x3
         x1 = self.conv1(x)
         y = self.conv2(x1)
         # y = y + prev
@@ -127,78 +127,78 @@ class DeBlock(nn.Module):
 
 
 
-class SSU(nn.Module):
-    def __init__(
-        self,
-        img_dim,
-        patch_dim,
-        num_channels,
-        num_classes,
-        embedding_dim,
-        num_heads,
-        num_layers,
-        hidden_dim,
-        dropout_rate=0.0,
-        attn_dropout_rate=0.0,
-        conv_patch_representation=True,
-        positional_encoding_type="learned",
-    ):
-        super(SSU, self).__init__()
-
-        self.num_classes = num_classes
-
-        self.Softmax = nn.Softmax(dim=1)
-
-        # 编码块和解码块
-        self.Enblock8_1 = EnBlock1(in_channels=self.embedding_dim)
-        self.Enblock8_2 = EnBlock2(in_channels=self.embedding_dim // 4)
-
-        self.DeUp4 = DeUp_Cat(in_channels=self.embedding_dim//4, out_channels=self.embedding_dim//8)
-        self.DeBlock4 = DeBlock(in_channels=self.embedding_dim//8)
-
-        self.DeUp3 = DeUp_Cat(in_channels=self.embedding_dim//8, out_channels=self.embedding_dim//16)
-        self.DeBlock3 = DeBlock(in_channels=self.embedding_dim//16)
-
-        self.DeUp2 = DeUp_Cat(in_channels=self.embedding_dim//16, out_channels=self.embedding_dim//32)
-        self.DeBlock2 = DeBlock(in_channels=self.embedding_dim//32)
-
-        self.endconv = nn.Conv3d(self.embedding_dim // 32, 4, kernel_size=1)
-
-
-    def decode(self, x1_1, x2_1, x3_1, x, intmd_x, intmd_layers=[1, 2, 3, 4]):
-
-        assert intmd_layers is not None, "pass the intermediate layers for MLA"
-        encoder_outputs = {}
-        all_keys = []
-        for i in intmd_layers:
-            val = str(2 * i - 1)
-            _key = 'Z' + str(i)
-            all_keys.append(_key)
-            encoder_outputs[_key] = intmd_x[val]
-        all_keys.reverse()
-
-        # 通过Enblock8_1和Enblock8_2进行编码
-        x8 = encoder_outputs[all_keys[0]] # torch.Size([1, 4096, 512])
-        x8 = self._reshape_output(x8) # torch.Size([1, 512, 16, 16, 16])
-        x8 = self.Enblock8_1(x8) # torch.Size([1, 128, 16, 16, 16])
-        x8 = self.Enblock8_2(x8) # torch.Size([1, 128, 16, 16, 16])
-
-        # 通过DeUp4和DeBlock4进行解码
-        y4 = self.DeUp4(x8, x3_1)  # (1, 64, 32, 32, 32)
-        y4 = self.DeBlock4(y4) # torch.Size([1, 64, 32, 32, 32])
-
-        # 通过DeUp3和DeBlock3进行解码
-        y3 = self.DeUp3(y4, x2_1)  # (1, 32, 64, 64, 64)
-        y3 = self.DeBlock3(y3)
-
-        # 通过DeUp2和DeBlock2进行解码
-        y2 = self.DeUp2(y3, x1_1)  # (1, 16, 128, 128, 128)
-        y2 = self.DeBlock2(y2)
-
-        # 通过endconv进行最终卷积，输出类别数为4
-        y = self.endconv(y2)      # (1, 4, 128, 128, 128)
-        y = self.Softmax(y)
-        return y
+# class SSU(nn.Module):
+#     def __init__(
+#         self,
+#         img_dim,
+#         patch_dim,
+#         num_channels,
+#         num_classes,
+#         embedding_dim,
+#         num_heads,
+#         num_layers,
+#         hidden_dim,
+#         dropout_rate=0.0,
+#         attn_dropout_rate=0.0,
+#         conv_patch_representation=True,
+#         positional_encoding_type="learned",
+#     ):
+#         super(SSU, self).__init__()
+#
+#         self.num_classes = num_classes
+#
+#         self.Softmax = nn.Softmax(dim=1)
+#
+#         # 编码块和解码块
+#         self.Enblock8_1 = EnBlock1(in_channels=self.embedding_dim)
+#         self.Enblock8_2 = EnBlock2(in_channels=self.embedding_dim // 4)
+#
+#         self.DeUp4 = DeUp_Cat(in_channels=self.embedding_dim//4, out_channels=self.embedding_dim//8)
+#         self.DeBlock4 = DeBlock(in_channels=self.embedding_dim//8)
+#
+#         self.DeUp3 = DeUp_Cat(in_channels=self.embedding_dim//8, out_channels=self.embedding_dim//16)
+#         self.DeBlock3 = DeBlock(in_channels=self.embedding_dim//16)
+#
+#         self.DeUp2 = DeUp_Cat(in_channels=self.embedding_dim//16, out_channels=self.embedding_dim//32)
+#         self.DeBlock2 = DeBlock(in_channels=self.embedding_dim//32)
+#
+#         self.endconv = nn.Conv3d(self.embedding_dim // 32, 4, kernel_size=1)
+#
+#
+#     def decode(self, x1_1, x2_1, x3_1, x, intmd_x, intmd_layers=[1, 2, 3, 4]):
+#
+#         assert intmd_layers is not None, "pass the intermediate layers for MLA"
+#         encoder_outputs = {}
+#         all_keys = []
+#         for i in intmd_layers:
+#             val = str(2 * i - 1)
+#             _key = 'Z' + str(i)
+#             all_keys.append(_key)
+#             encoder_outputs[_key] = intmd_x[val]
+#         all_keys.reverse()
+#
+#         # 通过Enblock8_1和Enblock8_2进行编码
+#         x8 = encoder_outputs[all_keys[0]] # torch.Size([1, 4096, 512])
+#         x8 = self._reshape_output(x8) # torch.Size([1, 512, 16, 16, 16])
+#         x8 = self.Enblock8_1(x8) # torch.Size([1, 128, 16, 16, 16])
+#         x8 = self.Enblock8_2(x8) # torch.Size([1, 128, 16, 16, 16])
+#
+#         # 通过DeUp4和DeBlock4进行解码
+#         y4 = self.DeUp4(x8, x3_1)  # (1, 64, 32, 32, 32)
+#         y4 = self.DeBlock4(y4) # torch.Size([1, 64, 32, 32, 32])
+#
+#         # 通过DeUp3和DeBlock3进行解码
+#         y3 = self.DeUp3(y4, x2_1)  # (1, 32, 64, 64, 64)
+#         y3 = self.DeBlock3(y3)
+#
+#         # 通过DeUp2和DeBlock2进行解码
+#         y2 = self.DeUp2(y3, x1_1)  # (1, 16, 128, 128, 128)
+#         y2 = self.DeBlock2(y2)
+#
+#         # 通过endconv进行最终卷积，输出类别数为4
+#         y = self.endconv(y2)      # (1, 4, 128, 128, 128)
+#         y = self.Softmax(y)
+#         return y
 
 
 
