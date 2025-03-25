@@ -58,9 +58,13 @@ class MSFblock(nn.Module):
 
         # weight[:,:,0]:(B,C,1); (B,C,1)-->unsqueeze-->(B,C,1,1)
         y0_weight = torch.unsqueeze(weight[:,:,0],2)
+        print("y0_weight:", y0_weight.shape)
         y1_weight = torch.unsqueeze(weight[:,:,1],2)
+        print("y1_weight:", y1_weight.shape)
         y2_weight = torch.unsqueeze(weight[:,:,2],2)
+        print("y2_weight:", y2_weight.shape)
         y3_weight = torch.unsqueeze(weight[:,:,3],2)
+        print("y3_weight:", y3_weight.shape)
 
         # 将权重与对应的输入进行逐元素乘法: (B,C,1,1) * (B,C,H,W)= (B,C,H,W), 然后将多个尺度的输出进行相加
         x_att = y0_weight*y0+y1_weight*y1+y2_weight*y2+y3_weight*y3

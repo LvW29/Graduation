@@ -61,7 +61,6 @@ class transUnet(nn.Module):
         self.con_last = nn.Conv3d(64, 3, 1)
 
     def _reshape_output(self, x):
-        print("fx.size(0)", x.size(0))
         # 将特征从(N, seq_length, embedding_dim)变为(N, D, H, W, embedding_dim)
         x = x.view(
             x.size(0),
@@ -78,10 +77,10 @@ class transUnet(nn.Module):
         x1, x = self.en1(x)
         x2, x = self.en2(x)
         x3, x = self.en3(x)
-        x4, _ = self.en4(x)
+        x4, _ = self.en4(x) # x4.shape: torch.Size([2, 512, 4, 20, 20])
 
-        x4 = self.vit(x4)
-        x4 = self._reshape_output(x4)
+        x4 = self.vit(x4) # x4.shape: torch.Size([2, 1600, 512])
+        x4 = self._reshape_output(x4)  # x4.shape: torch.Size([2, 512, 4, 20, 20])
 
         x = self.up3(x4, x3)
         x = self.up2(x, x2)

@@ -55,7 +55,6 @@ class MSFblock(nn.Module):
         weight = torch.cat([y0_weight,y1_weight,y2_weight,y3_weight],2)
         # 首先通过sigmoid函数获得通道描述符表示, 然后通过softmax函数,求每个尺度的权重: (B,C,4,1)--> (B,C,4,1)
         weight = self.softmax(self.Sigmoid(weight))
-
         # weight[:,:,0]:(B,C,1); (B,C,1)-->unsqueeze-->(B,C,1,1)
         y0_weight = torch.unsqueeze(weight[:,:,0],2)
         y1_weight = torch.unsqueeze(weight[:,:,1],2)
@@ -69,10 +68,10 @@ class MSFblock(nn.Module):
 
 if __name__ == '__main__':
     # (B,C,H,W)
-    x0 = torch.rand(1, 64, 64, 64, 64)
-    x1 = torch.rand(1, 64, 64, 64, 64)
-    x2 = torch.rand(1, 64, 64, 64, 64)
-    x3 = torch.rand(1, 64, 64, 64, 64)
-    Model = MSFblock(in_channels=64)
+    x0 = torch.rand(1, 4, 32, 32, 32)
+    x1 = torch.rand(1, 4, 32, 32, 32)
+    x2 = torch.rand(1, 4, 32, 32, 32)
+    x3 = torch.rand(1, 4, 32, 32, 32)
+    Model = MSFblock(in_channels=4)
     out = Model(x0,x1,x2,x3)
     print(out.shape)
