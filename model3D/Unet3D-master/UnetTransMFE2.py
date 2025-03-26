@@ -3,6 +3,7 @@ import torch.nn.functional as F
 import torch
 import MFEblock2
 import MFEblock
+import transformerBlock
 # adapt from https://github.com/MIC-DKFZ/BraTS2017
 
 class Double3DConv(nn.Module):
@@ -127,6 +128,23 @@ class UnetTransMFE2(nn.Module):
         self.up1 = unet3dDecoder(128, 64)
         self.con_last = nn.Conv3d(64, 3, 1)
 
+        self.vit = transformerBlock.Transformer(in_channels=512, embed_dim=512, dropout=0.1,
+                num_heads=8, activation='relu', num_encoders=6)
+
+    def _reshape_output(self, x):
+        # 将特征从(N, seq_length, embedding_dim)变为(N, D, H, W, embedding_dim)
+        x = x.view(
+            x.size(0),
+            4,
+            20,
+            20,
+            512,
+        )
+        # 调整维度顺序，从(N, D, H, W, embedding_dim)变为(N, embedding_dim, D, H, W)
+        x = x.permute(0, 4, 1, 2, 3).contiguous()
+
+        return x
+
     def forward(self, x):
         x = self.InitConv(x) # torch.Size([1, 64, 32, 160, 160])
         x1_1 = self.MFE(x)
@@ -146,6 +164,8 @@ class UnetTransMFE2(nn.Module):
         x4_3 = self.EnBlock4_3(x4_2) # torch.Size([1, 512, 4, 20, 20])
         output = self.EnBlock4_4(x4_3)  # torch.Size([1, 512, 4, 20, 20])
 
+        output = self.vit(output) # x4.shape: torch.Size([2, 1600, 512])
+        output = self._reshape_output(output)  # x4.shape: torch.Size([2, 512, 4, 20, 20])
 
         x = self.up3(output, x3_1)
         x = self.up2(x, x2_1)
