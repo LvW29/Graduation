@@ -1,6 +1,7 @@
 import torch.nn as nn
 import torch.nn.functional as F
 import torch
+import MFEblock2
 import MFEblock
 # adapt from https://github.com/MIC-DKFZ/BraTS2017
 
@@ -93,9 +94,9 @@ class EnDown(nn.Module):
 
 
 
-class UnetTransMFE(nn.Module):
+class UnetTransMFE2(nn.Module):
     def __init__(self, args):
-        super(UnetTransMFE, self).__init__()
+        super(UnetTransMFE2, self).__init__()
         self.in_channels = 4
         self.base_channels = 64
 
@@ -116,9 +117,10 @@ class UnetTransMFE(nn.Module):
         self.EnBlock4_3 = EnBlock(in_channels=self.base_channels * 8)
         self.EnBlock4_4 = EnBlock(in_channels=self.base_channels * 8)
 
-        self.MFE1 = MFEblock.MFEblock(in_channels=64, atrous_rates=[2, 4, 8])
-        self.MFE2 = MFEblock.MFEblock(in_channels=128, atrous_rates=[2, 4, 6])
-        self.MFE3 = MFEblock.MFEblock(in_channels=256, atrous_rates=[2, 3, 4])
+        self.MFE = MFEblock.MFEblock(in_channels=self.base_channels, atrous_rates=[2, 4, 6])
+        self.MFE1 = MFEblock2.MFEblock(in_channels=64, atrous_rates=[2, 4, 8])
+        self.MFE2 = MFEblock2.MFEblock(in_channels=128, atrous_rates=[2, 4, 6])
+        self.MFE3 = MFEblock2.MFEblock(in_channels=256, atrous_rates=[2, 3, 4])
         # self.MFE4 = MFEblock.MFEblock(in_channels=64, atrous_rates=[2, 3, 4])
         self.up3 = unet3dDecoder(512, 256)
         self.up2 = unet3dDecoder(256, 128)
@@ -127,19 +129,19 @@ class UnetTransMFE(nn.Module):
 
     def forward(self, x):
         x = self.InitConv(x) # torch.Size([1, 64, 32, 160, 160])
+        x1_1 = self.MFE(x)
+        # x1_1 = self.MFE1(x) # torch.Size([1, 64, 32, 160, 160])
+        # x1_2 = self.EnDown1(x1_1)  # torch.Size([1, 128, 16, 80, 80])
 
-        x1_1 = self.MFE1(x) # torch.Size([1, 64, 32, 160, 160])
-        x1_2 = self.EnDown1(x1_1)  # torch.Size([1, 128, 16, 80, 80])
-
-        x2_1 = self.MFE2(x1_2) # torch.Size([1, 128, 16, 80, 80])
+        x2_1 = self.MFE1(x1_1) # torch.Size([1, 128, 16, 80, 80])
         # x2_1 = self.EnBlock2_2(x2_1) # torch.Size([1, 128, 16, 80, 80])
-        x2_2 = self.EnDown2(x2_1)  # torch.Size([1, 256, 8, 40, 40])
+        # x2_2 = self.EnDown2(x2_1)  # torch.Size([1, 256, 8, 40, 40])
 
-        x3_1 = self.MFE3(x2_2) # torch.Size([1, 256, 8, 40, 40])
+        x3_1 = self.MFE2(x2_1) # torch.Size([1, 256, 8, 40, 40])
         # x3_1 = self.EnBlock3_2(x3_1) # torch.Size([1, 256, 8, 40, 40])
-        x3_2 = self.EnDown3(x3_1)  # torch.Size([1, 512, 4, 20, 20])
+        # x3_2 = self.EnDown3(x3_1)  # torch.Size([1, 512, 4, 20, 20])
 
-        x4_1 = self.EnBlock4_1(x3_2) # torch.Size([1, 512, 4, 20, 20])
+        x4_1 = self.MFE3(x3_1) # torch.Size([1, 512, 4, 20, 20])
         x4_2 = self.EnBlock4_2(x4_1) # torch.Size([1, 512, 4, 20, 20])
         x4_3 = self.EnBlock4_3(x4_2) # torch.Size([1, 512, 4, 20, 20])
         output = self.EnBlock4_4(x4_3)  # torch.Size([1, 512, 4, 20, 20])
@@ -152,14 +154,14 @@ class UnetTransMFE(nn.Module):
         return out
 
 
-# if __name__ == '__main__':
-#     with torch.no_grad():
-#         import os
-#         os.environ['CUDA_VISIBLE_DEVICES'] = '0'
-#         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-#         x = torch.rand((1, 4, 32, 160, 160), device=device)
-#         # model = Unet1(in_channels=4, base_channels=16, num_classes=4)
-#         model = UnetTransMFE(in_channels=4, base_channels=64, num_classes=4)
-#         model.to(device)
-#         output = model(x)
-#         print('output:', output.shape)
+if __name__ == '__main__':
+    with torch.no_grad():
+        import os
+        os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        x = torch.rand((1, 4, 32, 160, 160), device=device)
+        # model = Unet1(in_channels=4, base_channels=16, num_classes=4)
+        model = UnetTransMFE2(args="")
+        model.to(device)
+        output = model(x)
+        print('output:', output.shape)
