@@ -43,12 +43,12 @@ class unet3dDecoder(nn.Module):
         return x
 
 
-class transUnet(nn.Module):
+class unet3d_trans(nn.Module):
     def __init__(self, args):
-        super(transUnet, self).__init__()
+        super(unet3d_trans, self).__init__()
 
         self.vit = transformerBlock.Transformer(in_channels=512, embed_dim=512, dropout=0.1,
-                num_heads=8, activation='relu', num_encoders=1)
+                num_heads=8, activation='relu', num_encoders=6)
 
         self.en1 = unet3dEncoder(4, 64)
         self.en2 = unet3dEncoder(64, 128)

@@ -1,6 +1,6 @@
 import torch
-# from mamba_ssm_self.modules.mamba_simple import Mamba #从我们的mamba目录导入
-from mamba_ssm import Mamba
+from mamba_ssm_self.modules.mamba_simple import Mamba #从我们的mamba目录导入
+# from mamba_ssm import Mamba
 
 # 环境: Cuda 11.8, python 3.8(ubuntu20.04), PyTorch  2.0.0
 

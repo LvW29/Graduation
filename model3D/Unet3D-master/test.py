@@ -28,7 +28,7 @@ from torchvision import datasets, models, transforms
 
 from dataset import Dataset
 
-import unet3d
+import unet3d_trans
 from metrics import dice_coef, batch_iou, mean_iou, iou_score ,ppv,sensitivity
 import losses
 from utils import str2bool, count_params
@@ -37,10 +37,10 @@ import SimpleITK as sitk
 import imageio
 
 # 构建图像和掩码目录的路径
-# image_dir = os.path.join('autodl-tmp', '3D', 'trainImage')
-# mask_dir = os.path.join('autodl-tmp', '3D', 'trainMask')
-image_dir = os.path.join('..', '..', '..', 'autodl-tmp', '3D', 'trainImage')
-mask_dir = os.path.join('..', '..', '..', 'autodl-tmp', '3D', 'trainMask')
+image_dir = os.path.join('autodl-tmp', '3D', 'testImage')
+mask_dir = os.path.join('autodl-tmp', '3D', 'testMask')
+# image_dir = os.path.join('..', '..', '..', 'autodl-tmp', '3D', 'trainImage')
+# mask_dir = os.path.join('..', '..', '..', 'autodl-tmp', '3D', 'trainMask')
 
 IMG_PATH = glob(os.path.join(image_dir, '*'))
 MASK_PATH = glob(os.path.join(mask_dir, '*'))
@@ -65,7 +65,7 @@ et_Hausdorf = []
 def parse_args():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--name', default='BraTs_Unet3D_noblock_woDS',
+    parser.add_argument('--name', default='BraTs_unet3d_trans_woDS',
                         help='model name')
     parser.add_argument('--mode', default=MODE,
                         help='')
@@ -133,7 +133,7 @@ def main():
     #     os.makedirs('output/%s' %args.name)
 
     # 构建要加载的文件路径
-    models_dir = os.path.join('..', '..', '..', 'autodl-tmp', 'model3D', 'Unet3D', val_args.name)
+    models_dir = os.path.join('autodl-tmp', 'model3D', 'unet3d_trans', val_args.name)
     args_file_path = os.path.join(models_dir, 'args.pkl')
     args = joblib.load(args_file_path)
 
@@ -150,7 +150,7 @@ def main():
     joblib.dump(args, args_file_path)
     # create model
     print("=> creating model %s" %args.arch)
-    model = unet3d.__dict__[args.arch](args)
+    model = unet3d_trans.__dict__[args.arch](args)
 
     model = model.cuda()
 

@@ -34,28 +34,29 @@ from metrics import dice_coef, batch_iou, mean_iou, iou_score
 import losses
 from utils import str2bool, count_params
 import pandas as pd
-import missu
-# import unet3d_trans
-import UnetTransMFE2
+# import missu
+import unet3d_trans
+# import UnetTransMFE2
+# import unetMambaMFE
 
-arch_names = list(UnetTransMFE2.__dict__.keys())
+arch_names = list(unet3d_trans.__dict__.keys())
 loss_names = list(losses.__dict__.keys())
 loss_names.append('BCEWithLogitsLoss')
 
 # 构建图像和掩码目录的路径
-# image_dir = os.path.join('autodl-tmp', '3D', 'trainImage')
-# mask_dir = os.path.join('autodl-tmp', '3D', 'trainMask')
-image_dir = os.path.join('..', '..', '..', '..', 'autodl-tmp', '3D', 'trainImage')
-mask_dir = os.path.join('..', '..', '..', '..', 'autodl-tmp', '3D', 'trainMask')
+image_dir = os.path.join('autodl-tmp', '3D', 'trainImage')
+mask_dir = os.path.join('autodl-tmp', '3D', 'trainMask')
+# image_dir = os.path.join('..', '..', '..', '..', 'autodl-tmp', '3D', 'trainImage')
+# mask_dir = os.path.join('..', '..', '..', '..', 'autodl-tmp', '3D', 'trainMask')
 print(image_dir)
 print(mask_dir)
 
 # 使用 glob 获取文件路径
-# IMG_PATH = glob(os.path.join(image_dir, '*'))
-# MASK_PATH = glob(os.path.join(mask_dir, '*'))
+IMG_PATH = glob(os.path.join(image_dir, '*'))
+MASK_PATH = glob(os.path.join(mask_dir, '*'))
 # 使用 glob 获取文件路径
-IMG_PATH = glob(os.path.join(image_dir, 'hgg_Brats18_CBICA_*'))
-MASK_PATH = glob(os.path.join(mask_dir, 'hgg_Brats18_CBICA_*'))
+# IMG_PATH = glob(os.path.join(image_dir, 'hgg_Brats18_CBICA_*'))
+# MASK_PATH = glob(os.path.join(mask_dir, 'hgg_Brats18_CBICA_*'))
 
 print(f"Number of image paths: {len(IMG_PATH)}")
 print(f"Number of mask paths: {len(MASK_PATH)}")
@@ -69,7 +70,7 @@ def parse_args():
 
     parser.add_argument('--name', default=None,
                         help='model name: (default: arch+timestamp)')
-    parser.add_argument('--arch', '-a', metavar='ARCH', default='UnetTransMFE2',
+    parser.add_argument('--arch', '-a', metavar='ARCH', default='unet3d_trans',
                         choices=arch_names,
                         help='model architecture: ' +
                             ' | '.join(arch_names) +
@@ -91,7 +92,7 @@ def parse_args():
                             ' (default: BCEDiceLoss)')
     parser.add_argument('--epochs', default=100, type=int, metavar='N',
                         help='number of total epochs to run')
-    parser.add_argument('--early-stop', default=10, type=int,
+    parser.add_argument('--early-stop', default=20, type=int,
                         metavar='N', help='early stopping (default: 20)')
     parser.add_argument('-b', '--batch-size', default=2, type=int,
                         metavar='N', help='mini-batch size (default: 16)')
@@ -226,7 +227,7 @@ def main():
     #     os.makedirs('models/%s' %args.name)
 
     # 修改保存路径
-    save_dir = os.path.join('autodl-tmp', 'model3D', 'UnetTransMFE2', args.name)
+    save_dir = os.path.join('autodl-tmp', 'model3D', 'unet3d_trans', args.name)
     # save_dir = os.path.join('..', '..', '..', 'data', 'model3D', 'Unet3D', args.name)
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
@@ -264,7 +265,7 @@ def main():
 
     # create model
     print("=> creating model %s" %args.arch)
-    model = UnetTransMFE2.__dict__[args.arch](args)
+    model = unet3d_trans.__dict__[args.arch](args)
     model = model.to(device)
     #model._initialize_weights()
     # model.load_state_dict(torch.load('models/%s/model.pth' % args.name))

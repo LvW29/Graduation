@@ -97,6 +97,7 @@ class Transformer(nn.Module):
         x = self._reshape_output(x)
         # 通过Transformer编码器
         x = self.encoder_layers(x)
+        # x = self.layer_norm(x)
         return x
 
 

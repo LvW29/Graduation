@@ -3,7 +3,7 @@ import torch.nn.functional as F
 import torch
 import MFEblock2
 import MFEblock
-from mamba_ssm import Mamba
+from mamba_ssm_self.modules.mamba_simple import Mamba
 # adapt from https://github.com/MIC-DKFZ/BraTS2017
 
 class Double3DConv(nn.Module):
@@ -95,9 +95,9 @@ class EnDown(nn.Module):
 
 
 
-class UnetTransMFE2(nn.Module):
+class unetMambaMFE(nn.Module):
     def __init__(self, args):
-        super(UnetTransMFE2, self).__init__()
+        super(unetMambaMFE, self).__init__()
         self.in_channels = 4
         self.base_channels = 64
 
@@ -130,13 +130,20 @@ class UnetTransMFE2(nn.Module):
 
         # self.vit = transformerBlock.Transformer(in_channels=512, embed_dim=512, dropout=0.1,
         #         num_heads=8, activation='relu', num_encoders=6)
-        self.mamba = Mamba.Mamba(
+        self.mamba = Mamba(
             d_model=512, # Model dimension d_model
             d_state=16,  # SSM state expansion factor
             d_conv=4,    # Local convolution width
             expand=2)    # Block expansion factor)
 
-    def _reshape_output(self, x):
+    def _reshape_output1(self, x):
+        # 调整维度顺序，从(N, C, D, H, W)变为(N, D, H, W, C)
+        x = x.permute(0, 2, 3, 4, 1).contiguous()
+        # 将特征展平为(N, seq_length, embedding_dim)
+        x = x.view(x.size(0), -1, 512)
+        return x
+
+    def _reshape_output2(self, x):
         # 将特征从(N, seq_length, embedding_dim)变为(N, D, H, W, embedding_dim)
         x = x.view(
             x.size(0),
@@ -169,8 +176,14 @@ class UnetTransMFE2(nn.Module):
         x4_3 = self.EnBlock4_3(x4_2) # torch.Size([1, 512, 4, 20, 20])
         output = self.EnBlock4_4(x4_3)  # torch.Size([1, 512, 4, 20, 20])
 
-        output = self.vit(output) # x4.shape: torch.Size([2, 1600, 512])
-        output = self._reshape_output(output)  # x4.shape: torch.Size([2, 512, 4, 20, 20])
+        output = self._reshape_output1(output)
+        output = self.mamba(output) # x4.shape: torch.Size([2, 1600, 512])
+        output = self.mamba(output)
+        output = self.mamba(output)
+        output = self.mamba(output)
+        output = self.mamba(output)
+        output = self.mamba(output)
+        output = self._reshape_output2(output)  # x4.shape: torch.Size([2, 512, 4, 20, 20])
 
         x = self.up3(output, x3_1)
         x = self.up2(x, x2_1)
