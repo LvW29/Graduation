@@ -1,5 +1,7 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+from einops import rearrange
 
 
 class PatchEmbedding(nn.Module):
@@ -51,67 +53,98 @@ class PatchEmbedding(nn.Module):
 
 
 class Transformer(nn.Module):
-    """Transformer模型实现
+    """改进的Transformer实现，参考Mamba的结构
 
     Args:
-        in_channels (int): 输入图像的通道数
-        patch_size (int): 图像分块的大小
-        embed_dim (int): 嵌入向量维度
-        num_patches (int): 分块总数量
-        dropout (float): Dropout概率
-        num_heads (int): 多头注意力机制的头数
-        activation (str): 激活函数类型（如'relu'）
+        in_channels (int): 输入通道数
+        embed_dim (int): 嵌入维度
+        num_heads (int): 注意力头数
         num_encoders (int): Transformer编码器层数
-        num_classes (int): 分类任务的类别数
+        dropout (float): Dropout率
     """
 
-    def __init__(self, in_channels, embed_dim, dropout,
-                 num_heads, activation, num_encoders):
+    def __init__(self, in_channels, embed_dim, num_heads, num_encoders, dropout=0.1):
         super(Transformer, self).__init__()
         self.embed_dim = embed_dim
-        # 构建Transformer编码器层
-        encoder_layer = nn.TransformerEncoderLayer(d_model=embed_dim, nhead=num_heads, dropout=dropout,
-                                                   activation=activation, batch_first=True, norm_first=True)
+        self.num_heads = num_heads
+        self.num_encoders = num_encoders
+
+        # 输入投影层
+        self.in_proj = nn.Linear(in_channels, embed_dim)
+
+        # 位置编码
+        self.pos_embedding = nn.Parameter(torch.randn(1, 1600, embed_dim))  # 4*20*20=1600
+
+        # Transformer编码器层
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=embed_dim,
+            nhead=num_heads,
+            dim_feedforward=embed_dim * 4,
+            dropout=dropout,
+            activation='gelu',
+            batch_first=True
+        )
         self.encoder_layers = nn.TransformerEncoder(encoder_layer, num_layers=num_encoders)
-        self.layer_norm = nn.LayerNorm(normalized_shape=embed_dim)
-        # 分类头MLP，使用LayerNorm归一化
-        # self.MLP = nn.Sequential(
-        #     nn.LayerNorm(normalized_shape=embed_dim),
-        #     nn.Linear(in_features=embed_dim, out_features=num_classes)
-        # )
-    def _reshape_output(self, x):
-        # 调整维度顺序，从(N, C, D, H, W)变为(N, D, H, W, C)
+
+        # 输出投影层
+        self.out_proj = nn.Linear(embed_dim, embed_dim)
+
+        # Layer Normalization
+        self.norm = nn.LayerNorm(embed_dim)
+
+    def _reshape_input(self, x):
+        """将输入从(N, C, D, H, W)转换为(N, D*H*W, C)"""
         x = x.permute(0, 2, 3, 4, 1).contiguous()
-        # 将特征展平为(N, seq_length, embedding_dim)
-        x = x.view(x.size(0), -1, self.embed_dim)
+        x = x.view(x.size(0), -1, x.size(-1))
         return x
+
+    def _reshape_output(self, x):
+        """将输出从(N, D*H*W, C)转换回(N, C, D, H, W)"""
+        x = x.view(x.size(0), 4, 20, 20, self.embed_dim)
+        x = x.permute(0, 4, 1, 2, 3).contiguous()
+        return x
+
     def forward(self, x):
-        """前向传播过程
+        # 输入维度转换
+        x = self._reshape_input(x)
 
-        Args:
-            x (torch.Tensor): 输入图像张量，形状为 [B, C, D, H, W]
+        # 输入投影
+        x = self.in_proj(x)
 
-        Returns:
-            torch.Tensor
-        """
-        x = self._reshape_output(x)
-        # 通过Transformer编码器
+        # 添加位置编码
+        x = x + self.pos_embedding
+
+        # Transformer编码器层
         x = self.encoder_layers(x)
-        # x = self.layer_norm(x)
+
+        # Layer Normalization
+        x = self.norm(x)
+
+        # 输出投影
+        x = self.out_proj(x)
+
+        # 输出维度转换
+        x = self._reshape_output(x)
+
         return x
 
 
 def test():
-    """测试函数，验证模型前向传播的维度转换是否正常"""
-    # 生成随机输入数据（模拟batch_size=2的5D体积数据）
-    x = torch.randn((2, 4, 32, 160, 160))
-    # 初始化模型并进行预测
-    model = Transformer(in_channels=4, embed_dim=512, dropout=0.1,
-                num_heads=4, activation='relu', num_encoders=1)
+    """测试函数"""
+    # 生成随机输入数据
+    x = torch.randn((2, 512, 4, 20, 20))
+    # 初始化模型
+    model = Transformer(
+        in_channels=512,
+        embed_dim=512,
+        num_heads=8,
+        num_encoders=6,
+        dropout=0.1
+    )
+    # 前向传播
     predict = model(x)
-    # 输出形状验证
-    print(x.shape)
-    print(predict.shape)
+    print(f"Input shape: {x.shape}")
+    print(f"Output shape: {predict.shape}")
 
 
 if __name__ == "__main__":
