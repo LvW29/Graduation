@@ -28,22 +28,27 @@ from torchvision import datasets, models, transforms
 
 from dataset import Dataset
 
-import unet3d_trans
+# import unetMambaMFE
+import UnetTransMFE2
 from metrics import dice_coef, batch_iou, mean_iou, iou_score ,ppv,sensitivity
 import losses
 from utils import str2bool, count_params
 import joblib
 import SimpleITK as sitk
 import imageio
+import csv
 
 # 构建图像和掩码目录的路径
-image_dir = os.path.join('autodl-tmp', '3D', 'testImage')
-mask_dir = os.path.join('autodl-tmp', '3D', 'testMask')
-# image_dir = os.path.join('..', '..', '..', 'autodl-tmp', '3D', 'trainImage')
-# mask_dir = os.path.join('..', '..', '..', 'autodl-tmp', '3D', 'trainMask')
+# image_dir = os.path.join('autodl-tmp', '3D', 'testImage')
+# mask_dir = os.path.join('autodl-tmp', '3D', 'testMask')
+image_dir = os.path.join('E:\\', 'autodl', 'autodl-tmp', '3D', 'testImage')
+mask_dir = os.path.join('E:\\', 'autodl', 'autodl-tmp', '3D', 'testMask')
+print(image_dir)
 
 IMG_PATH = glob(os.path.join(image_dir, '*'))
 MASK_PATH = glob(os.path.join(mask_dir, '*'))
+print(f"Number of image paths: {len(IMG_PATH)}")
+print(f"Number of mask paths: {len(MASK_PATH)}")
 
 # 先执行GetPicture 再执行 Calculate
 MODE = 'GetPicture' #'Calculate'
@@ -60,12 +65,14 @@ et_ppvs = []
 wt_Hausdorf = []
 tc_Hausdorf = []
 et_Hausdorf = []
+result_list = []
+last_names = []
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--name', default='BraTs_unet3d_trans_woDS',
+    parser.add_argument('--name', default='BraTs_UnetTransMFE2_woDS',
                         help='model name')
     parser.add_argument('--mode', default=MODE,
                         help='')
@@ -133,12 +140,14 @@ def main():
     #     os.makedirs('output/%s' %args.name)
 
     # 构建要加载的文件路径
-    models_dir = os.path.join('autodl-tmp', 'model3D', 'unet3d_trans', val_args.name)
+    models_dir = os.path.join('E:\\', 'autodl', 'autodl-tmp', 'model3D', 'UnetTransMFE2', val_args.name)
+    print(models_dir)
     args_file_path = os.path.join(models_dir, 'args.pkl')
     args = joblib.load(args_file_path)
 
     # 构建输出目录的路径
-    savedir = os.path.join(models_dir, 'output')
+    temp_dir = os.path.join('E:\\', 'autodl', 'autodl-tmp', 'model3D', 'UnetTransMFE2')
+    savedir = os.path.join(temp_dir, 'test')
     if not os.path.exists(savedir):
         os.makedirs(savedir)
     print('Config -----')
@@ -150,7 +159,7 @@ def main():
     joblib.dump(args, args_file_path)
     # create model
     print("=> creating model %s" %args.arch)
-    model = unet3d_trans.__dict__[args.arch](args)
+    model = UnetTransMFE2.__dict__[args.arch](args)
 
     model = model.cuda()
 
@@ -228,6 +237,7 @@ def main():
                     # 提取当前块的位置、名字
                     PatchPosition, NameNow = GetPatchPosition(img_paths[i])
                     if (NameNow != LastName):
+                        last_names.append(LastName)
                         # 计算指标
                         CalculateWTTCET(OneWT, OneWTMask, OneTC, OneTCMask, OneET, OneETMask)
                         # OnePeople 0 1 2 4 => 增加或减少切片使得尺寸回到（155，240，240） => NII
@@ -291,6 +301,7 @@ def main():
 
                     # 最后一个分块从这里结束
                     if mynum == len(val_loader)-1:
+                        last_names.append(LastName)
                         # 计算指标
                         CalculateWTTCET(OneWT, OneWTMask, OneTC, OneTCMask, OneET, OneETMask)
                         # OnePeople 0 1 2 4 => 增加或减少切片使得尺寸回到（155，240，240） => NII
@@ -309,6 +320,56 @@ def main():
                         sitk.WriteImage(saveout, savedir + LastName + ".nii.gz")
 
             torch.cuda.empty_cache()
+
+    # for i, name in enumerate(last_names):
+    #     result = {
+    #         'Case': name,
+    #         'WT_Dice': wt_dices[i],
+    #         'TC_Dice': tc_dices[i],
+    #         'ET_Dice': et_dices[i],
+    #         'WT_PPV': wt_ppvs[i],
+    #         'TC_PPV': tc_ppvs[i],
+    #         'ET_PPV': et_ppvs[i],
+    #         'WT_Sensitivity': wt_sensitivities[i],
+    #         'TC_Sensitivity': tc_sensitivities[i],
+    #         'ET_Sensitivity': et_sensitivities[i],
+    #         'WT_Hausdorff': wt_Hausdorf[i],
+    #         'TC_Hausdorff': tc_Hausdorf[i],
+    #         'ET_Hausdorff': et_Hausdorf[i]
+    #     }
+    #     result_list.append(result)
+
+    metrics = [
+        ('WT_Dice', wt_dices),
+        ('TC_Dice', tc_dices),
+        ('ET_Dice', et_dices),
+        ('WT_PPV', wt_ppvs),
+        ('TC_PPV', tc_ppvs),
+        ('ET_PPV', et_ppvs),
+        ('WT_Sensitivity', wt_sensitivities),
+        ('TC_Sensitivity', tc_sensitivities),
+        ('ET_Sensitivity', et_sensitivities),
+        ('WT_Hausdorff', wt_Hausdorf),
+        ('TC_Hausdorff', tc_Hausdorf),
+        ('ET_Hausdorff', et_Hausdorf)
+    ]
+
+    # 写入CSV文件
+    csv_path = os.path.join(savedir, 'result--unet+trans.csv')
+    with open(csv_path, 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+
+        # 第一行写入病例名称
+        writer.writerow(['Metric'] + last_names)
+
+        # 逐行写入指标数据
+        for metric_name, values in metrics:
+            row = [metric_name] + [f"{v:.4f}" for v in values]
+            writer.writerow(row)
+
+    print('结果已保存到:', csv_path)
+
+
     print('WT Dice: %.4f' % np.mean(wt_dices))
     print('TC Dice: %.4f' % np.mean(tc_dices))
     print('ET Dice: %.4f' % np.mean(et_dices))

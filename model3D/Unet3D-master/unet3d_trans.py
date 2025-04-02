@@ -47,8 +47,15 @@ class unet3d_trans(nn.Module):
     def __init__(self, args):
         super(unet3d_trans, self).__init__()
 
-        self.vit = transformerBlock.Transformer(in_channels=512, embed_dim=512, dropout=0.1,
-                num_heads=8, activation='relu', num_encoders=6)
+        # self.vit = transformerBlock.Transformer(in_channels=512, embed_dim=512, dropout=0.1,
+        #         num_heads=8, activation='relu', num_encoders=6)
+        self.trans = transformerBlock.Transformer(
+            in_channels=512,
+            embed_dim=512,
+            num_heads=8,
+            num_encoders=6,
+            dropout=0.1
+        )
 
         self.en1 = unet3dEncoder(4, 64)
         self.en2 = unet3dEncoder(64, 128)
@@ -79,8 +86,10 @@ class unet3d_trans(nn.Module):
         x3, x = self.en3(x)
         x4, _ = self.en4(x) # x4.shape: torch.Size([2, 512, 4, 20, 20])
 
-        x4 = self.vit(x4) # x4.shape: torch.Size([2, 1600, 512])
-        x4 = self._reshape_output(x4)  # x4.shape: torch.Size([2, 512, 4, 20, 20])
+        # x4 = self.vit(x4) # x4.shape: torch.Size([2, 1600, 512])
+        # x4 = self._reshape_output(x4)  # x4.shape: torch.Size([2, 512, 4, 20, 20])
+        # 直接使用Transformer处理，不需要额外的维度转换
+        x4 = self.trans(x4)
 
         x = self.up3(x4, x3)
         x = self.up2(x, x2)

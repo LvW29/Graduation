@@ -35,11 +35,11 @@ import losses
 from utils import str2bool, count_params
 import pandas as pd
 # import missu
-import unet3d_trans
-# import UnetTransMFE2
+# import unet3d_trans
+import UnetTransMFE2
 # import unetMambaMFE
 
-arch_names = list(unet3d_trans.__dict__.keys())
+arch_names = list(UnetTransMFE2.__dict__.keys())
 loss_names = list(losses.__dict__.keys())
 loss_names.append('BCEWithLogitsLoss')
 
@@ -70,7 +70,7 @@ def parse_args():
 
     parser.add_argument('--name', default=None,
                         help='model name: (default: arch+timestamp)')
-    parser.add_argument('--arch', '-a', metavar='ARCH', default='unet3d_trans',
+    parser.add_argument('--arch', '-a', metavar='ARCH', default='UnetTransMFE2',
                         choices=arch_names,
                         help='model architecture: ' +
                             ' | '.join(arch_names) +
@@ -227,7 +227,7 @@ def main():
     #     os.makedirs('models/%s' %args.name)
 
     # 修改保存路径
-    save_dir = os.path.join('autodl-tmp', 'model3D', 'unet3d_trans', args.name)
+    save_dir = os.path.join('autodl-tmp', 'model3D', 'UnetTransMFE2', 'test')
     # save_dir = os.path.join('..', '..', '..', 'data', 'model3D', 'Unet3D', args.name)
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
@@ -265,7 +265,7 @@ def main():
 
     # create model
     print("=> creating model %s" %args.arch)
-    model = unet3d_trans.__dict__[args.arch](args)
+    model = UnetTransMFE2.__dict__[args.arch](args)
     model = model.to(device)
     #model._initialize_weights()
     # model.load_state_dict(torch.load('models/%s/model.pth' % args.name))
