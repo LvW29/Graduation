@@ -24,7 +24,7 @@ class Transformer(nn.Module):
         self.in_proj = nn.Linear(in_channels, embed_dim)
 
         # 位置编码
-        self.pos_embedding = nn.Parameter(torch.randn(1, 16000, embed_dim))  # 4*20*20=1600
+        self.pos_embedding = nn.Parameter(torch.randn(1, 8000, embed_dim))  # 4*20*20=1600
 
         # Transformer编码器层
         encoder_layer = nn.TransformerEncoderLayer(
@@ -87,13 +87,15 @@ class testTime(nn.Module):
         torch.cuda.synchronize()
         start_event.record()
 
-        x = self.mamba(x)  # 被测模块
-        # x = self.trans(x)  # 被测模块
+        # x = self.mamba(x)  # 被测模块
+        x = self.trans(x)  # 被测模块
 
         end_event.record()
         torch.cuda.synchronize()
-        print(f"Mamba execution time: {start_event.elapsed_time(end_event):.2f} ms")
         # 计时逻辑结束
+
+        # 显存统计
+        # mem_used = torch.cuda.max_memory_allocated() / (1024**2)  # 转换为MB
 
 
 if __name__ == '__main__':
@@ -104,9 +106,9 @@ if __name__ == '__main__':
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         # 测试配置参数
-        warmup_iters = 5  # 预热迭代次数
-        test_iters = 20  # 正式测试迭代次数
-        input_shape = (1, 16000, 512)  # 输入张量形状
+        warmup_iters = 50  # 预热迭代次数
+        test_iters = 1000  # 正式测试迭代次数
+        input_shape = (1, 8000, 512)  # 输入张量形状
 
         # 初始化模型
         model = testTime(args="")
@@ -126,9 +128,15 @@ if __name__ == '__main__':
         # 正式测量阶段
         print("Benchmarking...")
         timings = []
+        # 在测试循环中添加显存统计
+        mem_stats = []
+        torch.cuda.nvtx.range_push("frequency_lock")
         for _ in range(test_iters):
             # 每次使用新生成的数据（更接近真实场景）
             x = torch.rand(input_shape, device=device)
+
+            # torch.cuda.empty_cache()
+            # torch.cuda.reset_peak_memory_stats()
 
             torch.cuda.synchronize()
             starter.record()
@@ -137,6 +145,7 @@ if __name__ == '__main__':
             torch.cuda.synchronize()
 
             timings.append(starter.elapsed_time(ender))
+            mem_stats.append(torch.cuda.max_memory_allocated() / (1024 ** 2))
 
         # 统计结果
         avg_time = sum(timings) / test_iters
@@ -146,7 +155,14 @@ if __name__ == '__main__':
         print(f"Max time: {max(timings):.2f} ms")
         print(f"Min time: {min(timings):.2f} ms")
 
-        # 验证输出形状
-        test_input = torch.rand(input_shape, device=device)
-        output = model(test_input)
-        print("\nOutput shape verification:", output.shape)
+        # 显存统计输出
+        # avg_mem = sum(mem_stats) / test_iters
+        # print(f"\nMemory benchmark (n={test_iters}):")
+        # print(f"Average memory usage: {avg_mem:.2f} ± {torch.std(torch.tensor(mem_stats)):.2f} MB")
+        # print(f"Max memory: {max(mem_stats):.2f} MB")
+        # print(f"Min memory: {min(mem_stats):.2f} MB")
+
+        # # 验证输出形状
+        # test_input = torch.rand(input_shape, device=device)
+        # output = model(test_input)
+        # print("\nOutput shape verification:", output.shape)
