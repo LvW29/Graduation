@@ -29,7 +29,7 @@ from torchvision import datasets, models, transforms
 from dataset import Dataset
 
 # import unetMambaMFE
-import UnetTransMFE2
+import unet3d
 from metrics import dice_coef, batch_iou, mean_iou, iou_score ,ppv,sensitivity
 import losses
 from utils import str2bool, count_params
@@ -72,7 +72,7 @@ last_names = []
 def parse_args():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--name', default='BraTs_UnetTransMFE2_woDS',
+    parser.add_argument('--name', default='BraTs_unet3d_woDS',
                         help='model name')
     parser.add_argument('--mode', default=MODE,
                         help='')
@@ -140,13 +140,13 @@ def main():
     #     os.makedirs('output/%s' %args.name)
 
     # 构建要加载的文件路径
-    models_dir = os.path.join('E:\\', 'autodl', 'autodl-tmp', 'model3D', 'UnetTransMFE2', val_args.name)
+    models_dir = os.path.join('E:\\', 'autodl', 'autodl-tmp', 'model3D', 'unet3d', val_args.name)
     print(models_dir)
     args_file_path = os.path.join(models_dir, 'args.pkl')
     args = joblib.load(args_file_path)
 
     # 构建输出目录的路径
-    temp_dir = os.path.join('E:\\', 'autodl', 'autodl-tmp', 'model3D', 'UnetTransMFE2')
+    temp_dir = os.path.join('E:\\', 'autodl', 'autodl-tmp', 'model3D', 'unet3d')
     savedir = os.path.join(temp_dir, 'test')
     if not os.path.exists(savedir):
         os.makedirs(savedir)
@@ -159,7 +159,7 @@ def main():
     joblib.dump(args, args_file_path)
     # create model
     print("=> creating model %s" %args.arch)
-    model = UnetTransMFE2.__dict__[args.arch](args)
+    model = unet3d.__dict__[args.arch](args)
 
     model = model.cuda()
 
@@ -355,7 +355,7 @@ def main():
     ]
 
     # 写入CSV文件
-    csv_path = os.path.join(savedir, 'result--unet+trans.csv')
+    csv_path = os.path.join(savedir, 'result--unet.csv')
     with open(csv_path, 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
 
