@@ -71,3 +71,17 @@ class Unet2D(nn.Module):
         x1 = self.outconv(x)
 
         return x1
+
+if __name__ == '__main__':
+    with torch.no_grad():
+        import os
+        os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        import torch
+
+        # 模拟数据
+        x = torch.randn(2, 4, 160, 160)  # batch_size=2, 4 通道, 240×240
+
+        model = Unet2D(args="")
+        output = model(x)
+        print(output.shape)  # 输出: torch.Size([2, 3, 240, 240])

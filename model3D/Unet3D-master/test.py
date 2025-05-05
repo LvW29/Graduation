@@ -41,8 +41,8 @@ import csv
 # 构建图像和掩码目录的路径
 # image_dir = os.path.join('autodl-tmp', '3D', 'testImage')
 # mask_dir = os.path.join('autodl-tmp', '3D', 'testMask')
-image_dir = os.path.join('E:\\', 'autodl', 'autodl-tmp', '3D', 'testImage')
-mask_dir = os.path.join('E:\\', 'autodl', 'autodl-tmp', '3D', 'testMask')
+image_dir = os.path.join('E:\\', 'initdata', '3D', 'testImage')
+mask_dir = os.path.join('E:\\', 'initdata', '3D', 'testMask')
 print(image_dir)
 
 IMG_PATH = glob(os.path.join(image_dir, '*'))
@@ -72,7 +72,7 @@ last_names = []
 def parse_args():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--name', default='BraTs_unet3d_woDS',
+    parser.add_argument('--name', default='unet3d',
                         help='model name')
     parser.add_argument('--mode', default=MODE,
                         help='')
@@ -140,14 +140,14 @@ def main():
     #     os.makedirs('output/%s' %args.name)
 
     # 构建要加载的文件路径
-    models_dir = os.path.join('E:\\', 'autodl', 'autodl-tmp', 'model3D', 'unet3d', val_args.name)
+    models_dir = os.path.join('E:\\', 'initdata', 'unet')
     print(models_dir)
     args_file_path = os.path.join(models_dir, 'args.pkl')
     args = joblib.load(args_file_path)
 
     # 构建输出目录的路径
-    temp_dir = os.path.join('E:\\', 'autodl', 'autodl-tmp', 'model3D', 'unet3d')
-    savedir = os.path.join(temp_dir, 'test')
+    temp_dir = os.path.join('E:\\', 'initdata', 'unet')
+    savedir = os.path.join(temp_dir, 'output')
     if not os.path.exists(savedir):
         os.makedirs(savedir)
     print('Config -----')
@@ -176,7 +176,7 @@ def main():
     #   train_test_split(img_paths, mask_paths, test_size=0.2, random_state=41)
 
     # 构建具体的 model.pth 文件路径
-    model_file_path = os.path.join(models_dir, 'model.pth')
+    model_file_path = os.path.join(models_dir, 'model_epoch34.pth')
     model.load_state_dict(torch.load(model_file_path))
     # model.load_state_dict(torch.load('models/%s/model.pth' %args.name))
     model.eval()
@@ -355,7 +355,7 @@ def main():
     ]
 
     # 写入CSV文件
-    csv_path = os.path.join(savedir, 'result--unet.csv')
+    csv_path = os.path.join(savedir, 'unet.csv')
     with open(csv_path, 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
 

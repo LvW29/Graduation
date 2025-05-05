@@ -93,9 +93,9 @@ class EnDown(nn.Module):
 
 
 
-class UnetTransMFE(nn.Module):
+class UnetMFE(nn.Module):
     def __init__(self, args):
-        super(UnetTransMFE, self).__init__()
+        super(UnetMFE, self).__init__()
         self.in_channels = 4
         self.base_channels = 64
 

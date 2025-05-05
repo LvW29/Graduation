@@ -38,9 +38,18 @@ import joblib
 import imageio
 #import ttach as tta
 import SimpleITK as sitk
+import csv
 
-IMG_PATH = glob(r"..\..\data\processed\2D\testImage\*")
-MASK_PATH = glob(r"..\..\data\processed\2D\testMask\*")
+# IMG_PATH = glob(r"..\..\data\processed\2D\testImage\*")
+# MASK_PATH = glob(r"..\..\data\processed\2D\testMask\*")
+image_dir = os.path.join('E:\\', 'initdata', '2D', 'testImage')
+mask_dir = os.path.join('E:\\', 'initdata', '2D', 'testMask')
+print(image_dir)
+
+IMG_PATH = glob(os.path.join(image_dir, '*'))
+MASK_PATH = glob(os.path.join(mask_dir, '*'))
+print(f"Number of image paths: {len(IMG_PATH)}")
+print(f"Number of mask paths: {len(MASK_PATH)}")
 
 # 先执行GetPicture 再执行 Calculate
 MODE = 'GetPicture' #'Calculate'
@@ -57,11 +66,14 @@ et_ppvs = []
 wt_Hausdorf = []
 tc_Hausdorf = []
 et_Hausdorf = []
+result_list = []
+last_names = []
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--name', default='jiu0Monkey_Unet_woDS',
+    parser.add_argument('--name', default='unet2d',
                         help='model name')
     parser.add_argument('--mode', default=MODE,
                         help='')
@@ -123,14 +135,28 @@ def GetPatchPosition(PatchPath):
 def main():
     val_args = parse_args()
 
-    args = joblib.load('models/%s/args.pkl' %val_args.name)
-    if not os.path.exists('output/%s' %args.name):
-        os.makedirs('output/%s' %args.name)
+    # args = joblib.load('models/%s/args.pkl' %val_args.name)
+    # if not os.path.exists('output/%s' %args.name):
+    #     os.makedirs('output/%s' %args.name)
+
+    # 构建要加载的文件路径
+    models_dir = os.path.join('E:\\', 'initdata', 'unet2d')
+    print(models_dir)
+    args_file_path = os.path.join(models_dir, 'args.pkl')
+    args = joblib.load(args_file_path)
+
+    # 构建输出目录的路径
+    temp_dir = os.path.join('E:\\', 'initdata', 'unet2d')
+    savedir = os.path.join(temp_dir, 'output')
+    if not os.path.exists(savedir):
+        os.makedirs(savedir)
+
     print('Config -----')
     for arg in vars(args):
         print('%s: %s' %(arg, getattr(args, arg)))
     print('------------')
-    joblib.dump(args, 'models/%s/args.pkl' %args.name)
+    # joblib.dump(args, 'models/%s/args.pkl' %args.name)
+    joblib.dump(args, args_file_path)
 
     # create model
     print("=> creating model %s" %args.arch)
@@ -145,7 +171,9 @@ def main():
     val_img_paths = img_paths
     val_mask_paths = mask_paths
 
-    model.load_state_dict(torch.load('models/%s/model.pth' %args.name))
+    # model.load_state_dict(torch.load('models/%s/model.pth' %args.name))
+    model_file_path = os.path.join(models_dir, 'model.pth')
+    model.load_state_dict(torch.load(model_file_path))
     model.eval()
     #model = tta.SegmentationTTAWrapper(model, tta.aliases.d4_transform(), merge_mode='mean')
 
@@ -157,9 +185,9 @@ def main():
         pin_memory=True,
         drop_last=False)
 
-    savedir = 'output/%s/'%args.name
-    if not os.path.exists(savedir):
-        os.mkdir(savedir)
+    # savedir = 'output/%s/'%args.name
+    # if not os.path.exists(savedir):
+    #     os.mkdir(savedir)
 
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
@@ -286,6 +314,37 @@ def main():
                         sitk.WriteImage(saveout, savedir + LastName + ".nii.gz")
 
             torch.cuda.empty_cache()
+
+    metrics = [
+        ('WT_Dice', wt_dices),
+        ('TC_Dice', tc_dices),
+        ('ET_Dice', et_dices),
+        ('WT_PPV', wt_ppvs),
+        ('TC_PPV', tc_ppvs),
+        ('ET_PPV', et_ppvs),
+        ('WT_Sensitivity', wt_sensitivities),
+        ('TC_Sensitivity', tc_sensitivities),
+        ('ET_Sensitivity', et_sensitivities),
+        ('WT_Hausdorff', wt_Hausdorf),
+        ('TC_Hausdorff', tc_Hausdorf),
+        ('ET_Hausdorff', et_Hausdorf)
+    ]
+
+    # 写入CSV文件
+    csv_path = os.path.join(savedir, 'unet.csv')
+    with open(csv_path, 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+
+        # 第一行写入病例名称
+        writer.writerow(['Metric'] + last_names)
+
+        # 逐行写入指标数据
+        for metric_name, values in metrics:
+            row = [metric_name] + [f"{v:.4f}" for v in values]
+            writer.writerow(row)
+
+    print('结果已保存到:', csv_path)
+
     print('WT Dice: %.4f' % np.mean(wt_dices))
     print('TC Dice: %.4f' % np.mean(tc_dices))
     print('ET Dice: %.4f' % np.mean(et_dices))
